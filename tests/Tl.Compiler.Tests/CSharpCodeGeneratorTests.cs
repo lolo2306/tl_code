@@ -49,4 +49,26 @@ public class CSharpCodeGeneratorTests
         Assert.Contains("bool flag = true;", csharp);
         Assert.Contains("System.Console.WriteLine(flag);", csharp);
     }
+
+    [Fact]
+    public void Generate_BinaryExpression_EmitsParenthesizedOperator()
+    {
+        var expression = new BinaryExpression(new IntLiteral(1), BinaryOperator.Add, new IntLiteral(2), TlType.Int);
+        var program = new ProgramNode(new Statement[] { new PrintStatement(expression) });
+
+        var csharp = CSharpCodeGenerator.Generate(program);
+
+        Assert.Contains("System.Console.WriteLine((1 + 2));", csharp);
+    }
+
+    [Fact]
+    public void Generate_UnaryExpression_EmitsParenthesizedOperator()
+    {
+        var expression = new UnaryExpression(UnaryOperator.Not, new BoolLiteral(true), TlType.Bool);
+        var program = new ProgramNode(new Statement[] { new PrintStatement(expression) });
+
+        var csharp = CSharpCodeGenerator.Generate(program);
+
+        Assert.Contains("System.Console.WriteLine((!true));", csharp);
+    }
 }

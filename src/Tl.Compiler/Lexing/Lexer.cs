@@ -33,7 +33,19 @@ public sealed class Lexer
             {
                 '"' => ReadString(),
                 ';' => ReadSingleChar(TokenType.Semicolon),
-                '=' => ReadSingleChar(TokenType.Equals),
+                '(' => ReadSingleChar(TokenType.LParen),
+                ')' => ReadSingleChar(TokenType.RParen),
+                '+' => ReadSingleChar(TokenType.Plus),
+                '-' => ReadSingleChar(TokenType.Minus),
+                '*' => ReadSingleChar(TokenType.Star),
+                '/' => ReadSingleChar(TokenType.Slash),
+                '%' => ReadSingleChar(TokenType.Percent),
+                '=' => ReadOneOrTwoChar('=', TokenType.Equals, TokenType.EqualEqual),
+                '!' => ReadOneOrTwoChar('=', TokenType.Bang, TokenType.NotEqual),
+                '<' => ReadOneOrTwoChar('=', TokenType.Less, TokenType.LessEqual),
+                '>' => ReadOneOrTwoChar('=', TokenType.Greater, TokenType.GreaterEqual),
+                '&' => ReadRequiredTwoChar('&', TokenType.AndAnd),
+                '|' => ReadRequiredTwoChar('|', TokenType.OrOr),
                 var c when char.IsDigit(c) => ReadNumber(),
                 var c when char.IsLetter(c) => ReadIdentifierOrKeyword(),
                 var c => throw new TlCompilerException($"Caractère inattendu '{c}'", _line, _column),
@@ -79,6 +91,36 @@ public sealed class Lexer
         var column = _column;
         var lexeme = Advance().ToString();
         return new Token(type, lexeme, line, column);
+    }
+
+    private Token ReadOneOrTwoChar(char second, TokenType single, TokenType double_)
+    {
+        var line = _line;
+        var column = _column;
+        var first = Advance();
+
+        if (!IsAtEnd && Current == second)
+        {
+            Advance();
+            return new Token(double_, $"{first}{second}", line, column);
+        }
+
+        return new Token(single, first.ToString(), line, column);
+    }
+
+    private Token ReadRequiredTwoChar(char expectedSecond, TokenType type)
+    {
+        var line = _line;
+        var column = _column;
+        var first = Advance();
+
+        if (IsAtEnd || Current != expectedSecond)
+        {
+            throw new TlCompilerException($"Caractère inattendu '{first}'", line, column);
+        }
+
+        Advance();
+        return new Token(type, $"{first}{expectedSecond}", line, column);
     }
 
     private Token ReadString()

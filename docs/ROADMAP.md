@@ -16,7 +16,7 @@
 ## Phase 2 — Extension du langage
 
 - [x] Variables, types simples (string, int, bool) + messages d'erreur avec position (ligne/colonne).
-- [ ] Expressions (opérateurs arithmétiques/logiques).
+- [x] Expressions (opérateurs arithmétiques/logiques) : `+ - * / %`, comparaisons, `&& || !`, parenthèses, précédence standard, vérification de types.
 - [ ] Structures de contrôle (if, while).
 - [ ] Fonctions.
 

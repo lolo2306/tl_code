@@ -39,7 +39,34 @@ public static class CSharpCodeGenerator
         IntLiteral i => i.Value.ToString(CultureInfo.InvariantCulture),
         BoolLiteral b => b.Value ? "true" : "false",
         VariableReference v => v.Name,
+        BinaryExpression bin => $"({EmitExpression(bin.Left)} {ToCSharpOperator(bin.Operator)} {EmitExpression(bin.Right)})",
+        UnaryExpression un => $"({ToCSharpOperator(un.Operator)}{EmitExpression(un.Operand)})",
         _ => throw new NotSupportedException($"Expression non supportée : {expression.GetType().Name}"),
+    };
+
+    private static string ToCSharpOperator(BinaryOperator op) => op switch
+    {
+        BinaryOperator.Add => "+",
+        BinaryOperator.Subtract => "-",
+        BinaryOperator.Multiply => "*",
+        BinaryOperator.Divide => "/",
+        BinaryOperator.Modulo => "%",
+        BinaryOperator.Equal => "==",
+        BinaryOperator.NotEqual => "!=",
+        BinaryOperator.LessThan => "<",
+        BinaryOperator.GreaterThan => ">",
+        BinaryOperator.LessOrEqual => "<=",
+        BinaryOperator.GreaterOrEqual => ">=",
+        BinaryOperator.And => "&&",
+        BinaryOperator.Or => "||",
+        _ => throw new NotSupportedException($"Opérateur non supporté : {op}"),
+    };
+
+    private static string ToCSharpOperator(UnaryOperator op) => op switch
+    {
+        UnaryOperator.Negate => "-",
+        UnaryOperator.Not => "!",
+        _ => throw new NotSupportedException($"Opérateur non supporté : {op}"),
     };
 
     private static string ToCSharpKeyword(TlType type) => type switch

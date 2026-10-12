@@ -40,7 +40,7 @@ public sealed class Parser
     private Statement ParsePrintStatement()
     {
         Expect(TokenType.Print);
-        var value = ParseValue();
+        var value = ParseExpression();
         Expect(TokenType.Semicolon);
         return new PrintStatement(value);
     }
@@ -59,14 +59,136 @@ public sealed class Parser
         }
 
         Expect(TokenType.Equals);
-        var value = ParseValue();
+        var value = ParseExpression();
         Expect(TokenType.Semicolon);
 
         _variables[nameToken.Lexeme] = value.ResolveType();
         return new VarDeclaration(nameToken.Lexeme, value);
     }
 
-    private Expression ParseValue()
+    // programme de précédence (du plus faible au plus fort) :
+    // || -> && -> ==/!= -> </>/<=/>= -> +/- -> * / % -> unaire (-, !) -> primaire
+    private Expression ParseExpression() => ParseOr();
+
+    private Expression ParseOr()
+    {
+        var left = ParseAnd();
+
+        while (Current.Type == TokenType.OrOr)
+        {
+            var opToken = Current;
+            _position++;
+            left = MakeBinary(left, BinaryOperator.Or, ParseAnd(), opToken);
+        }
+
+        return left;
+    }
+
+    private Expression ParseAnd()
+    {
+        var left = ParseEquality();
+
+        while (Current.Type == TokenType.AndAnd)
+        {
+            var opToken = Current;
+            _position++;
+            left = MakeBinary(left, BinaryOperator.And, ParseEquality(), opToken);
+        }
+
+        return left;
+    }
+
+    private Expression ParseEquality()
+    {
+        var left = ParseRelational();
+
+        while (Current.Type is TokenType.EqualEqual or TokenType.NotEqual)
+        {
+            var opToken = Current;
+            _position++;
+            var op = opToken.Type == TokenType.EqualEqual ? BinaryOperator.Equal : BinaryOperator.NotEqual;
+            left = MakeBinary(left, op, ParseRelational(), opToken);
+        }
+
+        return left;
+    }
+
+    private Expression ParseRelational()
+    {
+        var left = ParseAdditive();
+
+        while (Current.Type is TokenType.Less or TokenType.Greater or TokenType.LessEqual or TokenType.GreaterEqual)
+        {
+            var opToken = Current;
+            _position++;
+            var op = opToken.Type switch
+            {
+                TokenType.Less => BinaryOperator.LessThan,
+                TokenType.Greater => BinaryOperator.GreaterThan,
+                TokenType.LessEqual => BinaryOperator.LessOrEqual,
+                TokenType.GreaterEqual => BinaryOperator.GreaterOrEqual,
+                _ => throw new NotSupportedException(),
+            };
+            left = MakeBinary(left, op, ParseAdditive(), opToken);
+        }
+
+        return left;
+    }
+
+    private Expression ParseAdditive()
+    {
+        var left = ParseMultiplicative();
+
+        while (Current.Type is TokenType.Plus or TokenType.Minus)
+        {
+            var opToken = Current;
+            _position++;
+            var op = opToken.Type == TokenType.Plus ? BinaryOperator.Add : BinaryOperator.Subtract;
+            left = MakeBinary(left, op, ParseMultiplicative(), opToken);
+        }
+
+        return left;
+    }
+
+    private Expression ParseMultiplicative()
+    {
+        var left = ParseUnary();
+
+        while (Current.Type is TokenType.Star or TokenType.Slash or TokenType.Percent)
+        {
+            var opToken = Current;
+            _position++;
+            var op = opToken.Type switch
+            {
+                TokenType.Star => BinaryOperator.Multiply,
+                TokenType.Slash => BinaryOperator.Divide,
+                TokenType.Percent => BinaryOperator.Modulo,
+                _ => throw new NotSupportedException(),
+            };
+            left = MakeBinary(left, op, ParseUnary(), opToken);
+        }
+
+        return left;
+    }
+
+    private Expression ParseUnary()
+    {
+        if (Current.Type is TokenType.Minus or TokenType.Bang)
+        {
+            var opToken = Current;
+            _position++;
+            var operand = ParseUnary();
+            var op = opToken.Type == TokenType.Minus ? UnaryOperator.Negate : UnaryOperator.Not;
+            var expectedType = op == UnaryOperator.Negate ? TlType.Int : TlType.Bool;
+
+            RequireType(operand.ResolveType(), expectedType, opToken);
+            return new UnaryExpression(op, operand, expectedType);
+        }
+
+        return ParsePrimary();
+    }
+
+    private Expression ParsePrimary()
     {
         var token = Current;
 
@@ -88,13 +210,15 @@ public sealed class Parser
                 _position++;
                 if (!_variables.TryGetValue(token.Lexeme, out var type))
                 {
-                    throw new TlCompilerException(
-                        $"Variable '{token.Lexeme}' non déclarée",
-                        token.Line,
-                        token.Column);
+                    throw new TlCompilerException($"Variable '{token.Lexeme}' non déclarée", token.Line, token.Column);
                 }
 
                 return new VariableReference(token.Lexeme, type);
+            case TokenType.LParen:
+                _position++;
+                var inner = ParseExpression();
+                Expect(TokenType.RParen);
+                return inner;
             default:
                 throw new TlCompilerException(
                     $"Valeur attendue, trouvé {token.Type} ('{token.Lexeme}')",
@@ -102,6 +226,79 @@ public sealed class Parser
                     token.Column);
         }
     }
+
+    private static Expression MakeBinary(Expression left, BinaryOperator op, Expression right, Token opToken)
+    {
+        var leftType = left.ResolveType();
+        var rightType = right.ResolveType();
+        TlType resultType;
+
+        switch (op)
+        {
+            case BinaryOperator.Add:
+            case BinaryOperator.Subtract:
+            case BinaryOperator.Multiply:
+            case BinaryOperator.Divide:
+            case BinaryOperator.Modulo:
+                RequireType(leftType, TlType.Int, opToken);
+                RequireType(rightType, TlType.Int, opToken);
+                resultType = TlType.Int;
+                break;
+
+            case BinaryOperator.LessThan:
+            case BinaryOperator.GreaterThan:
+            case BinaryOperator.LessOrEqual:
+            case BinaryOperator.GreaterOrEqual:
+                RequireType(leftType, TlType.Int, opToken);
+                RequireType(rightType, TlType.Int, opToken);
+                resultType = TlType.Bool;
+                break;
+
+            case BinaryOperator.Equal:
+            case BinaryOperator.NotEqual:
+                if (leftType != rightType)
+                {
+                    throw new TlCompilerException(
+                        $"Comparaison entre types différents ({Describe(leftType)} et {Describe(rightType)})",
+                        opToken.Line,
+                        opToken.Column);
+                }
+
+                resultType = TlType.Bool;
+                break;
+
+            case BinaryOperator.And:
+            case BinaryOperator.Or:
+                RequireType(leftType, TlType.Bool, opToken);
+                RequireType(rightType, TlType.Bool, opToken);
+                resultType = TlType.Bool;
+                break;
+
+            default:
+                throw new NotSupportedException($"Opérateur non supporté : {op}");
+        }
+
+        return new BinaryExpression(left, op, right, resultType);
+    }
+
+    private static void RequireType(TlType actual, TlType expected, Token opToken)
+    {
+        if (actual != expected)
+        {
+            throw new TlCompilerException(
+                $"Opérateur '{opToken.Lexeme}' attend {Describe(expected)}, trouvé {Describe(actual)}",
+                opToken.Line,
+                opToken.Column);
+        }
+    }
+
+    private static string Describe(TlType type) => type switch
+    {
+        TlType.String => "une chaîne",
+        TlType.Int => "un entier",
+        TlType.Bool => "un booléen",
+        _ => type.ToString(),
+    };
 
     private Token Current => _tokens[_position];
 

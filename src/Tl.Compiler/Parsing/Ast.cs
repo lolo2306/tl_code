@@ -7,6 +7,29 @@ public enum TlType
     Bool,
 }
 
+public enum BinaryOperator
+{
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessOrEqual,
+    GreaterOrEqual,
+    And,
+    Or,
+}
+
+public enum UnaryOperator
+{
+    Negate,
+    Not,
+}
+
 public abstract record Expression;
 
 public sealed record StringLiteral(string Value) : Expression;
@@ -17,6 +40,10 @@ public sealed record BoolLiteral(bool Value) : Expression;
 
 public sealed record VariableReference(string Name, TlType Type) : Expression;
 
+public sealed record BinaryExpression(Expression Left, BinaryOperator Operator, Expression Right, TlType Type) : Expression;
+
+public sealed record UnaryExpression(UnaryOperator Operator, Expression Operand, TlType Type) : Expression;
+
 public static class ExpressionExtensions
 {
     public static TlType ResolveType(this Expression expression) => expression switch
@@ -25,6 +52,8 @@ public static class ExpressionExtensions
         IntLiteral => TlType.Int,
         BoolLiteral => TlType.Bool,
         VariableReference variable => variable.Type,
+        BinaryExpression binary => binary.Type,
+        UnaryExpression unary => unary.Type,
         _ => throw new NotSupportedException($"Expression non supportée : {expression.GetType().Name}"),
     };
 }

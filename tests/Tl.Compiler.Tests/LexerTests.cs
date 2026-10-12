@@ -77,4 +77,41 @@ public class LexerTests
         Assert.Equal(2, exception.Line);
         Assert.Equal(3, exception.Column);
     }
+
+    [Theory]
+    [InlineData("+", TokenType.Plus)]
+    [InlineData("-", TokenType.Minus)]
+    [InlineData("*", TokenType.Star)]
+    [InlineData("/", TokenType.Slash)]
+    [InlineData("%", TokenType.Percent)]
+    [InlineData("(", TokenType.LParen)]
+    [InlineData(")", TokenType.RParen)]
+    [InlineData("!", TokenType.Bang)]
+    [InlineData("==", TokenType.EqualEqual)]
+    [InlineData("!=", TokenType.NotEqual)]
+    [InlineData("<", TokenType.Less)]
+    [InlineData(">", TokenType.Greater)]
+    [InlineData("<=", TokenType.LessEqual)]
+    [InlineData(">=", TokenType.GreaterEqual)]
+    [InlineData("&&", TokenType.AndAnd)]
+    [InlineData("||", TokenType.OrOr)]
+    public void Tokenize_Operators_ProducesExpectedTokenType(string lexeme, TokenType expected)
+    {
+        var tokens = new Lexer(lexeme).Tokenize();
+
+        Assert.Equal(expected, tokens[0].Type);
+        Assert.Equal(lexeme, tokens[0].Lexeme);
+    }
+
+    [Fact]
+    public void Tokenize_LoneAmpersand_Throws()
+    {
+        Assert.Throws<TlCompilerException>(() => new Lexer("&").Tokenize());
+    }
+
+    [Fact]
+    public void Tokenize_LonePipe_Throws()
+    {
+        Assert.Throws<TlCompilerException>(() => new Lexer("|").Tokenize());
+    }
 }

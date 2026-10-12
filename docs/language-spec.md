@@ -1,19 +1,43 @@
 # Spécification du langage TL
 
-## v2 (phase 2) — variables et types
+## v3 (phase 2) — expressions
 
 ### Grammaire
 
 ```
 programme    := instruction*
 instruction  := printInstruction | déclarationVariable
-printInstruction    := "print" valeur ";"
-déclarationVariable := "var" identifiant "=" valeur ";"
-valeur       := chaîne | entier | booléen | identifiant
+printInstruction    := "print" expression ";"
+déclarationVariable := "var" identifiant "=" expression ";"
+
+expression   := ou
+ou           := et ("||" et)*
+et           := égalité ("&&" égalité)*
+égalité      := relation (("==" | "!=") relation)*
+relation     := additive (("<" | ">" | "<=" | ">=") additive)*
+additive     := multiplicative (("+" | "-") multiplicative)*
+multiplicative := unaire (("*" | "/" | "%") unaire)*
+unaire       := ("-" | "!") unaire | primaire
+primaire     := chaîne | entier | booléen | identifiant | "(" expression ")"
+
 chaîne       := '"' caractère* '"'
 entier       := chiffre+
 booléen      := "true" | "false"
 ```
+
+### Opérateurs
+
+| Opérateur(s)            | Opérandes       | Résultat | Remarque |
+|--------------------------|-----------------|----------|----------|
+| `+ - * / %`              | `int`, `int`    | `int`    | division entière (comme en C#) |
+| `< > <= >=`              | `int`, `int`    | `bool`   | |
+| `== !=`                  | même type des deux côtés | `bool` | string/int/bool |
+| `&& \|\|`                | `bool`, `bool`  | `bool`   | |
+| `-` (unaire)             | `int`           | `int`    | |
+| `!` (unaire)             | `bool`          | `bool`   | |
+| `( expression )`         | —               | type de l'expression | pour forcer la précédence |
+
+Mélanger les types (ex : `"a" + 1`, `1 && 2`) est une erreur de compilation, détectée avec ligne/colonne.
 
 ### Types
 
@@ -44,17 +68,17 @@ Toute erreur de compilation (lexicale ou syntaxique) indique la ligne et la colo
 ```tl
 var name = "Laurent";
 var age = 42;
-var isDev = true;
 print "Bonjour !";
 print name;
-print age;
-print isDev;
+print age >= 18 && age < 65;
+print (2 + 3) * 4;
+print age % 10;
 ```
 
 ### Non supporté (volontairement, pour l'instant)
 
-- Expressions (opérateurs arithmétiques/logiques) — prochaine étape de la phase 2.
 - Réassignation de variables.
+- Concaténation de chaînes avec `+`.
 - Structures de contrôle (if/while).
 - Fonctions.
 - Commentaires.
