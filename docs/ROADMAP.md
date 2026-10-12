@@ -5,13 +5,13 @@
 - [ ] Solution .NET (`dotnet new sln`), projet compilateur (console app), projet de tests (xUnit).
 - [ ] Pipeline CI minimal (build + tests) — optionnel, à discuter plus tard.
 
-## Phase 1 — "Hello, world" (Linux)
+## Phase 1 — "Hello, world" (Linux) ✅
 
-- [ ] Lexer : tokenizer minimal (`print`, chaîne de caractères, fin d'instruction).
-- [ ] Parser : AST pour une suite d'instructions `print "...";`.
-- [ ] Génération de code : AST → C# → compilation Roslyn → assembly.
-- [ ] `dotnet publish -r linux-x64 --self-contained` produit un binaire autonome qui exécute le `.tl`.
-- [ ] Tests unitaires lexer/parser + test bout en bout (golden file sur la sortie stdout).
+- [x] Lexer : tokenizer minimal (`print`, chaîne de caractères, fin d'instruction).
+- [x] Parser : AST pour une suite d'instructions `print "...";`.
+- [x] Génération de code : AST → C# → compilation (via `dotnet publish`, qui utilise Roslyn) → assembly.
+- [x] `dotnet publish -r linux-x64 --self-contained` produit un binaire autonome qui exécute le `.tl`.
+- [x] Tests unitaires lexer/parser/codegen + test bout en bout qui compile et exécute réellement le binaire.
 
 ## Phase 2 — Extension du langage
 
