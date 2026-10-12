@@ -97,6 +97,9 @@ public class LexerTests
     [InlineData("||", TokenType.OrOr)]
     [InlineData("{", TokenType.LBrace)]
     [InlineData("}", TokenType.RBrace)]
+    [InlineData(",", TokenType.Comma)]
+    [InlineData(":", TokenType.Colon)]
+    [InlineData("->", TokenType.Arrow)]
     public void Tokenize_Operators_ProducesExpectedTokenType(string lexeme, TokenType expected)
     {
         var tokens = new Lexer(lexeme).Tokenize();
@@ -126,5 +129,26 @@ public class LexerTests
         var tokens = new Lexer(lexeme).Tokenize();
 
         Assert.Equal(expected, tokens[0].Type);
+    }
+
+    [Theory]
+    [InlineData("fn", TokenType.Fn)]
+    [InlineData("return", TokenType.Return)]
+    [InlineData("int", TokenType.TypeInt)]
+    [InlineData("string", TokenType.TypeString)]
+    [InlineData("bool", TokenType.TypeBool)]
+    public void Tokenize_FunctionKeywords_ProducesExpectedTokenType(string lexeme, TokenType expected)
+    {
+        var tokens = new Lexer(lexeme).Tokenize();
+
+        Assert.Equal(expected, tokens[0].Type);
+    }
+
+    [Fact]
+    public void Tokenize_MinusNotFollowedByGreaterThan_ProducesMinusToken()
+    {
+        var tokens = new Lexer("5 - 2").Tokenize();
+
+        Assert.Equal(TokenType.Minus, tokens[1].Type);
     }
 }

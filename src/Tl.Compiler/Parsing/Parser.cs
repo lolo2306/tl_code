@@ -7,7 +7,10 @@ namespace Tl.Compiler.Parsing;
 public sealed class Parser
 {
     private readonly IReadOnlyList<Token> _tokens;
-    private readonly List<Dictionary<string, TlType>> _scopes = new() { new() };
+    private readonly Dictionary<string, FunctionSignature> _functions = new();
+    private List<Dictionary<string, TlType>> _scopes = new() { new() };
+    private bool _insideFunction;
+    private TlType? _currentFunctionReturnType;
     private int _position;
 
     public Parser(IReadOnlyList<Token> tokens)
@@ -21,7 +24,7 @@ public sealed class Parser
 
         while (Current.Type != TokenType.Eof)
         {
-            statements.Add(ParseStatement());
+            statements.Add(Current.Type == TokenType.Fn ? ParseFunctionDeclaration() : ParseStatement());
         }
 
         return new ProgramNode(statements);
@@ -33,6 +36,8 @@ public sealed class Parser
         TokenType.Var => ParseVarDeclaration(),
         TokenType.If => ParseIfStatement(),
         TokenType.While => ParseWhileStatement(),
+        TokenType.Return => ParseReturnStatement(),
+        TokenType.Identifier when PeekNext().Type == TokenType.LParen => ParseCallStatement(),
         TokenType.Identifier => ParseAssignment(),
         _ => throw new TlCompilerException(
             $"Instruction attendue, trouvé {Current.Type} ('{Current.Lexeme}')",
@@ -42,9 +47,18 @@ public sealed class Parser
 
     private Statement ParsePrintStatement()
     {
-        Expect(TokenType.Print);
+        var keywordToken = Expect(TokenType.Print);
         var value = ParseExpression();
         Expect(TokenType.Semicolon);
+
+        if (value.ResolveType() == TlType.Void)
+        {
+            throw new TlCompilerException(
+                "Impossible d'afficher le résultat d'un appel qui ne retourne rien (void)",
+                keywordToken.Line,
+                keywordToken.Column);
+        }
+
         return new PrintStatement(value);
     }
 
@@ -64,6 +78,14 @@ public sealed class Parser
         Expect(TokenType.Equals);
         var value = ParseExpression();
         Expect(TokenType.Semicolon);
+
+        if (value.ResolveType() == TlType.Void)
+        {
+            throw new TlCompilerException(
+                $"Impossible d'assigner à '{nameToken.Lexeme}' le résultat d'un appel qui ne retourne rien (void)",
+                nameToken.Line,
+                nameToken.Column);
+        }
 
         DeclareVariable(nameToken.Lexeme, value.ResolveType());
         return new VarDeclaration(nameToken.Lexeme, value);
@@ -128,6 +150,209 @@ public sealed class Parser
 
         var body = ParseBlock();
         return new WhileStatement(condition, body);
+    }
+
+    private Statement ParseReturnStatement()
+    {
+        var keywordToken = Expect(TokenType.Return);
+
+        if (!_insideFunction)
+        {
+            throw new TlCompilerException(
+                "'return' ne peut être utilisé qu'à l'intérieur d'une fonction",
+                keywordToken.Line,
+                keywordToken.Column);
+        }
+
+        Expression? value = Current.Type == TokenType.Semicolon ? null : ParseExpression();
+        Expect(TokenType.Semicolon);
+
+        if (_currentFunctionReturnType is TlType expected)
+        {
+            if (value is null)
+            {
+                throw new TlCompilerException(
+                    $"Cette fonction doit retourner {Describe(expected)}",
+                    keywordToken.Line,
+                    keywordToken.Column);
+            }
+
+            if (value.ResolveType() != expected)
+            {
+                throw new TlCompilerException(
+                    $"Type de retour invalide : attendu {Describe(expected)}, trouvé {Describe(value.ResolveType())}",
+                    keywordToken.Line,
+                    keywordToken.Column);
+            }
+        }
+        else if (value is not null)
+        {
+            throw new TlCompilerException(
+                "Cette fonction ne retourne rien (void), 'return' ne doit pas avoir de valeur",
+                keywordToken.Line,
+                keywordToken.Column);
+        }
+
+        return new ReturnStatement(value);
+    }
+
+    private Statement ParseFunctionDeclaration()
+    {
+        Expect(TokenType.Fn);
+        var nameToken = Expect(TokenType.Identifier);
+
+        if (_functions.ContainsKey(nameToken.Lexeme))
+        {
+            throw new TlCompilerException(
+                $"Fonction '{nameToken.Lexeme}' déjà déclarée",
+                nameToken.Line,
+                nameToken.Column);
+        }
+
+        Expect(TokenType.LParen);
+        var parameters = ParseParameters();
+        Expect(TokenType.RParen);
+
+        TlType? returnType = null;
+
+        if (Current.Type == TokenType.Arrow)
+        {
+            _position++;
+            returnType = ParseTypeAnnotation();
+        }
+
+        // Enregistrée avant de parser le corps : permet la récursion directe.
+        _functions[nameToken.Lexeme] = new FunctionSignature(parameters.Select(p => p.Type).ToList(), returnType);
+
+        var savedScopes = _scopes;
+        var savedInsideFunction = _insideFunction;
+        var savedReturnType = _currentFunctionReturnType;
+
+        _scopes = new List<Dictionary<string, TlType>> { new() };
+
+        foreach (var parameter in parameters)
+        {
+            _scopes[0][parameter.Name] = parameter.Type;
+        }
+
+        _insideFunction = true;
+        _currentFunctionReturnType = returnType;
+
+        var body = ParseBlock();
+
+        _scopes = savedScopes;
+        _insideFunction = savedInsideFunction;
+        _currentFunctionReturnType = savedReturnType;
+
+        return new FunctionDeclaration(nameToken.Lexeme, parameters, returnType, body);
+    }
+
+    private List<Parameter> ParseParameters()
+    {
+        var parameters = new List<Parameter>();
+        var seenNames = new HashSet<string>();
+
+        if (Current.Type == TokenType.RParen)
+        {
+            return parameters;
+        }
+
+        parameters.Add(ParseParameter(seenNames));
+
+        while (Current.Type == TokenType.Comma)
+        {
+            _position++;
+            parameters.Add(ParseParameter(seenNames));
+        }
+
+        return parameters;
+    }
+
+    private Parameter ParseParameter(HashSet<string> seenNames)
+    {
+        var nameToken = Expect(TokenType.Identifier);
+
+        if (!seenNames.Add(nameToken.Lexeme))
+        {
+            throw new TlCompilerException($"Paramètre '{nameToken.Lexeme}' déjà utilisé", nameToken.Line, nameToken.Column);
+        }
+
+        Expect(TokenType.Colon);
+        var type = ParseTypeAnnotation();
+        return new Parameter(nameToken.Lexeme, type);
+    }
+
+    private TlType ParseTypeAnnotation()
+    {
+        var token = Current;
+
+        var type = token.Type switch
+        {
+            TokenType.TypeInt => TlType.Int,
+            TokenType.TypeString => TlType.String,
+            TokenType.TypeBool => TlType.Bool,
+            _ => throw new TlCompilerException($"Type attendu, trouvé {token.Type} ('{token.Lexeme}')", token.Line, token.Column),
+        };
+
+        _position++;
+        return type;
+    }
+
+    private Statement ParseCallStatement()
+    {
+        var call = ParseCall();
+        Expect(TokenType.Semicolon);
+        return new ExpressionStatement(call);
+    }
+
+    private CallExpression ParseCall()
+    {
+        var nameToken = Expect(TokenType.Identifier);
+        Expect(TokenType.LParen);
+
+        var arguments = new List<Expression>();
+
+        if (Current.Type != TokenType.RParen)
+        {
+            arguments.Add(ParseExpression());
+
+            while (Current.Type == TokenType.Comma)
+            {
+                _position++;
+                arguments.Add(ParseExpression());
+            }
+        }
+
+        Expect(TokenType.RParen);
+
+        if (!_functions.TryGetValue(nameToken.Lexeme, out var signature))
+        {
+            throw new TlCompilerException($"Fonction '{nameToken.Lexeme}' non déclarée", nameToken.Line, nameToken.Column);
+        }
+
+        if (arguments.Count != signature.ParameterTypes.Count)
+        {
+            throw new TlCompilerException(
+                $"'{nameToken.Lexeme}' attend {signature.ParameterTypes.Count} argument(s), {arguments.Count} fourni(s)",
+                nameToken.Line,
+                nameToken.Column);
+        }
+
+        for (var i = 0; i < arguments.Count; i++)
+        {
+            var expected = signature.ParameterTypes[i];
+            var actual = arguments[i].ResolveType();
+
+            if (actual != expected)
+            {
+                throw new TlCompilerException(
+                    $"Argument {i + 1} de '{nameToken.Lexeme}' : attendu {Describe(expected)}, trouvé {Describe(actual)}",
+                    nameToken.Line,
+                    nameToken.Column);
+            }
+        }
+
+        return new CallExpression(nameToken.Lexeme, arguments, signature.ReturnType ?? TlType.Void);
     }
 
     private BlockStatement ParseBlock()
@@ -292,6 +517,8 @@ public sealed class Parser
             case TokenType.False:
                 _position++;
                 return new BoolLiteral(false);
+            case TokenType.Identifier when PeekNext().Type == TokenType.LParen:
+                return ParseCall();
             case TokenType.Identifier:
                 _position++;
                 if (!TryResolveVariable(token.Lexeme, out var type))
@@ -394,6 +621,7 @@ public sealed class Parser
         TlType.String => "une chaîne",
         TlType.Int => "un entier",
         TlType.Bool => "un booléen",
+        TlType.Void => "rien (void)",
         _ => type.ToString(),
     };
 
@@ -421,6 +649,8 @@ public sealed class Parser
 
     private Token Current => _tokens[_position];
 
+    private Token PeekNext() => _tokens[Math.Min(_position + 1, _tokens.Count - 1)];
+
     private Token Expect(TokenType type)
     {
         if (Current.Type != type)
@@ -435,4 +665,6 @@ public sealed class Parser
         _position++;
         return token;
     }
+
+    private sealed record FunctionSignature(IReadOnlyList<TlType> ParameterTypes, TlType? ReturnType);
 }

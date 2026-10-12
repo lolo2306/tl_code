@@ -11,18 +11,39 @@ public static class CSharpCodeGenerator
         var source = new StringBuilder();
         source.AppendLine("class GeneratedProgram");
         source.AppendLine("{");
+
+        foreach (var statement in program.Statements)
+        {
+            if (statement is FunctionDeclaration function)
+            {
+                EmitFunction(source, function);
+            }
+        }
+
         source.AppendLine("    static void Main()");
         source.AppendLine("    {");
 
         foreach (var statement in program.Statements)
         {
-            EmitStatement(source, statement, indent: 2);
+            if (statement is not FunctionDeclaration)
+            {
+                EmitStatement(source, statement, indent: 2);
+            }
         }
 
         source.AppendLine("    }");
         source.AppendLine("}");
 
         return source.ToString();
+    }
+
+    private static void EmitFunction(StringBuilder source, FunctionDeclaration function)
+    {
+        var returnType = function.ReturnType is TlType rt ? ToCSharpKeyword(rt) : "void";
+        var parameters = string.Join(", ", function.Parameters.Select(p => $"{ToCSharpKeyword(p.Type)} {p.Name}"));
+
+        source.AppendLine($"    static {returnType} {function.Name}({parameters})");
+        EmitBlock(source, function.Body, indent: 1);
     }
 
     private static void EmitStatement(StringBuilder source, Statement statement, int indent)
@@ -61,6 +82,16 @@ public static class CSharpCodeGenerator
                 EmitBlock(source, whileStatement.Body, indent);
                 break;
 
+            case ReturnStatement returnStatement:
+                source.AppendLine(returnStatement.Value is null
+                    ? $"{pad}return;"
+                    : $"{pad}return {EmitExpression(returnStatement.Value)};");
+                break;
+
+            case ExpressionStatement expressionStatement:
+                source.AppendLine($"{pad}{EmitExpression(expressionStatement.Expression)};");
+                break;
+
             default:
                 throw new NotSupportedException($"Instruction non supportée : {statement.GetType().Name}");
         }
@@ -89,6 +120,7 @@ public static class CSharpCodeGenerator
         VariableReference v => v.Name,
         BinaryExpression bin => $"({EmitExpression(bin.Left)} {ToCSharpOperator(bin.Operator)} {EmitExpression(bin.Right)})",
         UnaryExpression un => $"({ToCSharpOperator(un.Operator)}{EmitExpression(un.Operand)})",
+        CallExpression call => $"{call.Name}({string.Join(", ", call.Arguments.Select(EmitExpression))})",
         _ => throw new NotSupportedException($"Expression non supportée : {expression.GetType().Name}"),
     };
 
@@ -122,6 +154,7 @@ public static class CSharpCodeGenerator
         TlType.String => "string",
         TlType.Int => "int",
         TlType.Bool => "bool",
+        TlType.Void => "void",
         _ => throw new NotSupportedException($"Type non supporté : {type}"),
     };
 

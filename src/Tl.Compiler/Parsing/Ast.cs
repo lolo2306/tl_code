@@ -5,6 +5,7 @@ public enum TlType
     String,
     Int,
     Bool,
+    Void,
 }
 
 public enum BinaryOperator
@@ -30,6 +31,8 @@ public enum UnaryOperator
     Not,
 }
 
+public sealed record Parameter(string Name, TlType Type);
+
 public abstract record Expression;
 
 public sealed record StringLiteral(string Value) : Expression;
@@ -44,6 +47,8 @@ public sealed record BinaryExpression(Expression Left, BinaryOperator Operator, 
 
 public sealed record UnaryExpression(UnaryOperator Operator, Expression Operand, TlType Type) : Expression;
 
+public sealed record CallExpression(string Name, IReadOnlyList<Expression> Arguments, TlType Type) : Expression;
+
 public static class ExpressionExtensions
 {
     public static TlType ResolveType(this Expression expression) => expression switch
@@ -54,6 +59,7 @@ public static class ExpressionExtensions
         VariableReference variable => variable.Type,
         BinaryExpression binary => binary.Type,
         UnaryExpression unary => unary.Type,
+        CallExpression call => call.Type,
         _ => throw new NotSupportedException($"Expression non supportée : {expression.GetType().Name}"),
     };
 }
@@ -71,5 +77,15 @@ public sealed record BlockStatement(IReadOnlyList<Statement> Statements) : State
 public sealed record IfStatement(Expression Condition, BlockStatement Then, BlockStatement? Else) : Statement;
 
 public sealed record WhileStatement(Expression Condition, BlockStatement Body) : Statement;
+
+public sealed record FunctionDeclaration(
+    string Name,
+    IReadOnlyList<Parameter> Parameters,
+    TlType? ReturnType,
+    BlockStatement Body) : Statement;
+
+public sealed record ReturnStatement(Expression? Value) : Statement;
+
+public sealed record ExpressionStatement(Expression Expression) : Statement;
 
 public sealed record ProgramNode(IReadOnlyList<Statement> Statements);

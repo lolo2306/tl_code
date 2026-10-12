@@ -38,10 +38,12 @@ public sealed class Lexer
                 '{' => ReadSingleChar(TokenType.LBrace),
                 '}' => ReadSingleChar(TokenType.RBrace),
                 '+' => ReadSingleChar(TokenType.Plus),
-                '-' => ReadSingleChar(TokenType.Minus),
+                '-' => ReadMinusOrArrow(),
                 '*' => ReadSingleChar(TokenType.Star),
                 '/' => ReadSingleChar(TokenType.Slash),
                 '%' => ReadSingleChar(TokenType.Percent),
+                ',' => ReadSingleChar(TokenType.Comma),
+                ':' => ReadSingleChar(TokenType.Colon),
                 '=' => ReadOneOrTwoChar('=', TokenType.Equals, TokenType.EqualEqual),
                 '!' => ReadOneOrTwoChar('=', TokenType.Bang, TokenType.NotEqual),
                 '<' => ReadOneOrTwoChar('=', TokenType.Less, TokenType.LessEqual),
@@ -108,6 +110,21 @@ public sealed class Lexer
         }
 
         return new Token(single, first.ToString(), line, column);
+    }
+
+    private Token ReadMinusOrArrow()
+    {
+        var line = _line;
+        var column = _column;
+        var first = Advance();
+
+        if (!IsAtEnd && Current == '>')
+        {
+            Advance();
+            return new Token(TokenType.Arrow, "->", line, column);
+        }
+
+        return new Token(TokenType.Minus, first.ToString(), line, column);
     }
 
     private Token ReadRequiredTwoChar(char expectedSecond, TokenType type)
@@ -202,8 +219,13 @@ public sealed class Lexer
             "if" => new Token(TokenType.If, text, startLine, startColumn),
             "else" => new Token(TokenType.Else, text, startLine, startColumn),
             "while" => new Token(TokenType.While, text, startLine, startColumn),
+            "fn" => new Token(TokenType.Fn, text, startLine, startColumn),
+            "return" => new Token(TokenType.Return, text, startLine, startColumn),
             "true" => new Token(TokenType.True, text, startLine, startColumn),
             "false" => new Token(TokenType.False, text, startLine, startColumn),
+            "int" => new Token(TokenType.TypeInt, text, startLine, startColumn),
+            "string" => new Token(TokenType.TypeString, text, startLine, startColumn),
+            "bool" => new Token(TokenType.TypeBool, text, startLine, startColumn),
             _ => new Token(TokenType.Identifier, text, startLine, startColumn),
         };
     }

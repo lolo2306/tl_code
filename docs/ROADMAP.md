@@ -13,12 +13,12 @@
 - [x] `dotnet publish -r linux-x64 --self-contained` produit un binaire autonome qui exécute le `.tl`.
 - [x] Tests unitaires lexer/parser/codegen + test bout en bout qui compile et exécute réellement le binaire.
 
-## Phase 2 — Extension du langage
+## Phase 2 — Extension du langage ✅
 
 - [x] Variables, types simples (string, int, bool) + messages d'erreur avec position (ligne/colonne).
 - [x] Expressions (opérateurs arithmétiques/logiques) : `+ - * / %`, comparaisons, `&& || !`, parenthèses, précédence standard, vérification de types.
 - [x] Structures de contrôle (if/else/else-if, while) + réassignation de variables (`x = valeur;`, nécessaire pour qu'un `while` soit utilisable) + portée par bloc sans masquage.
-- [ ] Fonctions.
+- [x] Fonctions : `fn nom(param: type) -> type { ... }`, portée totalement isolée (pas d'accès aux variables globales), récursion directe, appels en expression ou en instruction. Pas de récursion mutuelle ni de closures (voir language-spec.md).
 
 (Ordre et contenu à ajuster au fur et à mesure, en fonction de ce qu'on a envie de comprendre ensuite.)
 
