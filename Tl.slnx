@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Tl.Compiler/Tl.Compiler.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tl.Compiler.Tests/Tl.Compiler.Tests.csproj" />
+  </Folder>
+</Solution>
