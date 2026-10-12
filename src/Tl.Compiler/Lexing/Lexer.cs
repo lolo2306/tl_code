@@ -8,6 +8,7 @@ public sealed class Lexer
     private readonly string _source;
     private int _position;
     private int _line = 1;
+    private int _column = 1;
 
     public Lexer(string source)
     {
@@ -24,7 +25,7 @@ public sealed class Lexer
 
             if (IsAtEnd)
             {
-                tokens.Add(new Token(TokenType.Eof, string.Empty, _line));
+                tokens.Add(new Token(TokenType.Eof, string.Empty, _line, _column));
                 break;
             }
 
@@ -32,8 +33,10 @@ public sealed class Lexer
             {
                 '"' => ReadString(),
                 ';' => ReadSingleChar(TokenType.Semicolon),
-                var c when char.IsLetter(c) => ReadKeyword(),
-                var c => throw new TlCompilerException($"Caractère inattendu '{c}'", _line),
+                '=' => ReadSingleChar(TokenType.Equals),
+                var c when char.IsDigit(c) => ReadNumber(),
+                var c when char.IsLetter(c) => ReadIdentifierOrKeyword(),
+                var c => throw new TlCompilerException($"Caractère inattendu '{c}'", _line, _column),
             });
         }
 
@@ -48,9 +51,15 @@ public sealed class Lexer
     {
         var c = _source[_position];
         _position++;
+
         if (c == '\n')
         {
             _line++;
+            _column = 1;
+        }
+        else
+        {
+            _column++;
         }
 
         return c;
@@ -67,13 +76,15 @@ public sealed class Lexer
     private Token ReadSingleChar(TokenType type)
     {
         var line = _line;
+        var column = _column;
         var lexeme = Advance().ToString();
-        return new Token(type, lexeme, line);
+        return new Token(type, lexeme, line, column);
     }
 
     private Token ReadString()
     {
         var startLine = _line;
+        var startColumn = _column;
         Advance();
 
         var text = new StringBuilder();
@@ -100,22 +111,37 @@ public sealed class Lexer
                 '\\' => '\\',
                 'n' => '\n',
                 't' => '\t',
-                _ => throw new TlCompilerException($"Séquence d'échappement inconnue '\\{escaped}'", startLine),
+                _ => throw new TlCompilerException($"Séquence d'échappement inconnue '\\{escaped}'", startLine, startColumn),
             });
         }
 
         if (IsAtEnd)
         {
-            throw new TlCompilerException("Chaîne de caractères non terminée", startLine);
+            throw new TlCompilerException("Chaîne de caractères non terminée", startLine, startColumn);
         }
 
         Advance();
-        return new Token(TokenType.String, text.ToString(), startLine);
+        return new Token(TokenType.String, text.ToString(), startLine, startColumn);
     }
 
-    private Token ReadKeyword()
+    private Token ReadNumber()
     {
         var startLine = _line;
+        var startColumn = _column;
+        var start = _position;
+
+        while (!IsAtEnd && char.IsDigit(Current))
+        {
+            Advance();
+        }
+
+        return new Token(TokenType.Int, _source[start.._position], startLine, startColumn);
+    }
+
+    private Token ReadIdentifierOrKeyword()
+    {
+        var startLine = _line;
+        var startColumn = _column;
         var start = _position;
 
         while (!IsAtEnd && char.IsLetterOrDigit(Current))
@@ -127,8 +153,11 @@ public sealed class Lexer
 
         return text switch
         {
-            "print" => new Token(TokenType.Print, text, startLine),
-            _ => throw new TlCompilerException($"Mot-clé inconnu '{text}'", startLine),
+            "print" => new Token(TokenType.Print, text, startLine, startColumn),
+            "var" => new Token(TokenType.Var, text, startLine, startColumn),
+            "true" => new Token(TokenType.True, text, startLine, startColumn),
+            "false" => new Token(TokenType.False, text, startLine, startColumn),
+            _ => new Token(TokenType.Identifier, text, startLine, startColumn),
         };
     }
 }

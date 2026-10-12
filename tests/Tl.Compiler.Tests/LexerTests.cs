@@ -37,8 +37,44 @@ public class LexerTests
     }
 
     [Fact]
-    public void Tokenize_UnknownKeyword_Throws()
+    public void Tokenize_VarDeclaration_ProducesExpectedTokens()
     {
-        Assert.Throws<TlCompilerException>(() => new Lexer("println \"hi\";").Tokenize());
+        var tokens = new Lexer("var x = 42;").Tokenize();
+
+        Assert.Collection(
+            tokens,
+            t => Assert.Equal(TokenType.Var, t.Type),
+            t =>
+            {
+                Assert.Equal(TokenType.Identifier, t.Type);
+                Assert.Equal("x", t.Lexeme);
+            },
+            t => Assert.Equal(TokenType.Equals, t.Type),
+            t =>
+            {
+                Assert.Equal(TokenType.Int, t.Type);
+                Assert.Equal("42", t.Lexeme);
+            },
+            t => Assert.Equal(TokenType.Semicolon, t.Type),
+            t => Assert.Equal(TokenType.Eof, t.Type));
+    }
+
+    [Theory]
+    [InlineData("true", TokenType.True)]
+    [InlineData("false", TokenType.False)]
+    public void Tokenize_BooleanKeywords_ProducesExpectedTokenType(string lexeme, TokenType expected)
+    {
+        var tokens = new Lexer(lexeme).Tokenize();
+
+        Assert.Equal(expected, tokens[0].Type);
+    }
+
+    [Fact]
+    public void Tokenize_UnexpectedCharacter_ReportsLineAndColumn()
+    {
+        var exception = Assert.Throws<TlCompilerException>(() => new Lexer("print \"ok\";\n  @").Tokenize());
+
+        Assert.Equal(2, exception.Line);
+        Assert.Equal(3, exception.Column);
     }
 }

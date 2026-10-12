@@ -1,8 +1,8 @@
 # Roadmap
 
-## Phase 0 — Scaffolding
+## Phase 0 — Scaffolding ✅
 
-- [ ] Solution .NET (`dotnet new sln`), projet compilateur (console app), projet de tests (xUnit).
+- [x] Solution .NET (`dotnet new sln`), projet compilateur (console app), projet de tests (xUnit).
 - [ ] Pipeline CI minimal (build + tests) — optionnel, à discuter plus tard.
 
 ## Phase 1 — "Hello, world" (Linux) ✅
@@ -15,7 +15,7 @@
 
 ## Phase 2 — Extension du langage
 
-- [ ] Variables, types simples (string, int, bool).
+- [x] Variables, types simples (string, int, bool) + messages d'erreur avec position (ligne/colonne).
 - [ ] Expressions (opérateurs arithmétiques/logiques).
 - [ ] Structures de contrôle (if, while).
 - [ ] Fonctions.
@@ -44,5 +44,4 @@ Objectif : remplacer l'étape "transpile en C# + Roslyn" par un vrai générateu
 ## Backlog / idées non priorisées
 
 - Native AOT (compilation du C# généré par la phase 1 vers du natif) si on veut un binaire natif rapide sans attendre la phase 4 — nécessite de builder sur l'OS cible, donc pas de cross-compilation possible. Différent de la phase 4 : ici Roslyn/le runtime .NET fait toujours la génération de code, on ne fait qu'éviter le JIT.
-- Messages d'erreur avec position (ligne/colonne).
 - REPL.

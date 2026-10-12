@@ -30,3 +30,4 @@ Décision à valider avec l'utilisateur au moment venu : le générateur de code
 - Pas de commentaires sauf si le "pourquoi" n'est pas évident (contournement, contrainte cachée, invariant surprenant).
 - Pas de sur-ingénierie : on construit uniquement ce qui est nécessaire à l'étape en cours de la roadmap.
 - Priorité à la compréhension : expliquer les choix de conception au fil de l'eau plutôt que les enfouir silencieusement dans le code.
+- Remettre à jour le ROADMAP.md après chaque point terminé
