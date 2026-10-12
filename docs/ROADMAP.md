@@ -28,13 +28,21 @@
 - [ ] Vérification du binaire Windows (VM ou CI avec runner Windows — impossible à exécuter depuis Linux directement).
 - [ ] Documenter les différences éventuelles (chemins, fins de ligne, encodage console, etc.).
 
-## Phase 4 — Exploration Rust (plus tard)
+## Phase 4 — Génération de code natif (sans Roslyn)
+
+Objectif : remplacer l'étape "transpile en C# + Roslyn" par un vrai générateur de code machine, pour aller jusqu'au bout de l'exercice.
+
+- [x] Approche retenue : émettre de l'assembleur x86-64 (texte), déléguer l'assemblage et l'édition de liens à des outils existants (`as`/`ld` sur Linux, équivalent mingw pour Windows). On écrit vraiment la génération de code (instructions, registres, pile, syscalls) sans réinventer le format ELF/PE.
+- [ ] Gestion des conventions d'appel, de la pile, des syscalls (Linux) / API Windows pour les I/O (`print`).
+- [ ] Réutiliser les mêmes tests bout en bout que la phase 1 (même langage, nouveau backend) pour vérifier la non-régression.
+
+## Phase 5 — Exploration Rust (plus tard)
 
 - [ ] Réécriture du compilateur en Rust une fois les bases bien comprises en C#.
 - [ ] Comparaison des deux implémentations à but pédagogique.
 
 ## Backlog / idées non priorisées
 
-- Native AOT si on veut un vrai binaire natif compilé (nécessite de builder sur l'OS cible, donc pas de cross-compilation possible).
+- Native AOT (compilation du C# généré par la phase 1 vers du natif) si on veut un binaire natif rapide sans attendre la phase 4 — nécessite de builder sur l'OS cible, donc pas de cross-compilation possible. Différent de la phase 4 : ici Roslyn/le runtime .NET fait toujours la génération de code, on ne fait qu'éviter le JIT.
 - Messages d'erreur avec position (ligne/colonne).
 - REPL.
