@@ -64,4 +64,12 @@ public sealed record PrintStatement(Expression Value) : Statement;
 
 public sealed record VarDeclaration(string Name, Expression Value) : Statement;
 
+public sealed record AssignmentStatement(string Name, Expression Value) : Statement;
+
+public sealed record BlockStatement(IReadOnlyList<Statement> Statements) : Statement;
+
+public sealed record IfStatement(Expression Condition, BlockStatement Then, BlockStatement? Else) : Statement;
+
+public sealed record WhileStatement(Expression Condition, BlockStatement Body) : Statement;
+
 public sealed record ProgramNode(IReadOnlyList<Statement> Statements);

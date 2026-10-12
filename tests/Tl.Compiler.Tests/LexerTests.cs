@@ -95,6 +95,8 @@ public class LexerTests
     [InlineData(">=", TokenType.GreaterEqual)]
     [InlineData("&&", TokenType.AndAnd)]
     [InlineData("||", TokenType.OrOr)]
+    [InlineData("{", TokenType.LBrace)]
+    [InlineData("}", TokenType.RBrace)]
     public void Tokenize_Operators_ProducesExpectedTokenType(string lexeme, TokenType expected)
     {
         var tokens = new Lexer(lexeme).Tokenize();
@@ -113,5 +115,16 @@ public class LexerTests
     public void Tokenize_LonePipe_Throws()
     {
         Assert.Throws<TlCompilerException>(() => new Lexer("|").Tokenize());
+    }
+
+    [Theory]
+    [InlineData("if", TokenType.If)]
+    [InlineData("else", TokenType.Else)]
+    [InlineData("while", TokenType.While)]
+    public void Tokenize_ControlFlowKeywords_ProducesExpectedTokenType(string lexeme, TokenType expected)
+    {
+        var tokens = new Lexer(lexeme).Tokenize();
+
+        Assert.Equal(expected, tokens[0].Type);
     }
 }

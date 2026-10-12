@@ -17,7 +17,7 @@
 
 - [x] Variables, types simples (string, int, bool) + messages d'erreur avec position (ligne/colonne).
 - [x] Expressions (opérateurs arithmétiques/logiques) : `+ - * / %`, comparaisons, `&& || !`, parenthèses, précédence standard, vérification de types.
-- [ ] Structures de contrôle (if, while).
+- [x] Structures de contrôle (if/else/else-if, while) + réassignation de variables (`x = valeur;`, nécessaire pour qu'un `while` soit utilisable) + portée par bloc sans masquage.
 - [ ] Fonctions.
 
 (Ordre et contenu à ajuster au fur et à mesure, en fonction de ce qu'on a envie de comprendre ensuite.)

@@ -1,14 +1,18 @@
 # Spécification du langage TL
 
-## v3 (phase 2) — expressions
+## v4 (phase 2) — structures de contrôle
 
 ### Grammaire
 
 ```
 programme    := instruction*
-instruction  := printInstruction | déclarationVariable
+instruction  := printInstruction | déclarationVariable | assignation | ifInstruction | whileInstruction
 printInstruction    := "print" expression ";"
 déclarationVariable := "var" identifiant "=" expression ";"
+assignation         := identifiant "=" expression ";"
+ifInstruction        := "if" "(" expression ")" bloc ( "else" (ifInstruction | bloc) )?
+whileInstruction      := "while" "(" expression ")" bloc
+bloc                 := "{" instruction* "}"
 
 expression   := ou
 ou           := et ("||" et)*
@@ -51,9 +55,23 @@ Trois types, inférés depuis la valeur assignée (pas d'annotation de type expl
 
 ### Variables
 
-- Déclaration unique : `var nom = valeur;`. Redéclarer un nom déjà utilisé est une erreur de compilation.
-- Utiliser une variable non déclarée (dans `print` ou dans une autre déclaration) est une erreur de compilation.
-- Pas de réassignation pour l'instant (`x = nouvelle_valeur;` sans `var` n'existe pas encore).
+- Déclaration : `var nom = valeur;`.
+- Réassignation (sans `var`) : `nom = valeur;` — la variable doit déjà être déclarée et la nouvelle valeur doit être du même type.
+- Utiliser une variable non déclarée est une erreur de compilation.
+
+### Portée des variables (scoping)
+
+- Chaque bloc `{ ... }` (corps de `if`/`else`/`while`) introduit sa propre portée : une variable déclarée dedans n'existe plus une fois le bloc terminé.
+- **Pas de masquage (shadowing)** : on ne peut pas redéclarer un nom déjà utilisé dans une portée englobante encore active, même dans un bloc imbriqué. Choix volontaire pour rester simple — pas besoin de réfléchir à "quel `x` est utilisé ici ?".
+- Un bloc peut en revanche réutiliser un nom déclaré dans un bloc *frère* (non imbriqué), puisque la portée du premier est refermée avant que le second ne commence.
+- Une variable déclarée dans une portée englobante reste assignable depuis un bloc imbriqué (c'est ce qui permet de faire varier la condition d'un `while`).
+
+### Structures de contrôle
+
+- `if (condition) { ... }`, avec `else { ... }` optionnel, et `else if (...) { ... }` en chaîne.
+- `while (condition) { ... }`.
+- La condition doit être de type `bool` (vérifié à la compilation).
+- Les accolades sont **obligatoires** : pas de raccourci type `if (cond) print x;` sans bloc (choix volontaire pour rester simple et éviter toute ambiguïté).
 
 ### Chaînes de caractères
 
@@ -66,21 +84,27 @@ Toute erreur de compilation (lexicale ou syntaxique) indique la ligne et la colo
 ### Exemple
 
 ```tl
-var name = "Laurent";
+var i = 0;
+while (i < 5) {
+    print i;
+    i = i + 1;
+}
+
 var age = 42;
-print "Bonjour !";
-print name;
-print age >= 18 && age < 65;
-print (2 + 3) * 4;
-print age % 10;
+if (age < 18) {
+    print "mineur";
+} else if (age < 65) {
+    print "actif";
+} else {
+    print "retraite";
+}
 ```
 
 ### Non supporté (volontairement, pour l'instant)
 
-- Réassignation de variables.
 - Concaténation de chaînes avec `+`.
-- Structures de contrôle (if/while).
 - Fonctions.
 - Commentaires.
+- `for`, `break`, `continue`.
 
 Voir [ROADMAP.md](ROADMAP.md) pour les phases suivantes.

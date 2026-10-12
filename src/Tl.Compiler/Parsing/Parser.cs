@@ -7,7 +7,7 @@ namespace Tl.Compiler.Parsing;
 public sealed class Parser
 {
     private readonly IReadOnlyList<Token> _tokens;
-    private readonly Dictionary<string, TlType> _variables = new();
+    private readonly List<Dictionary<string, TlType>> _scopes = new() { new() };
     private int _position;
 
     public Parser(IReadOnlyList<Token> tokens)
@@ -31,6 +31,9 @@ public sealed class Parser
     {
         TokenType.Print => ParsePrintStatement(),
         TokenType.Var => ParseVarDeclaration(),
+        TokenType.If => ParseIfStatement(),
+        TokenType.While => ParseWhileStatement(),
+        TokenType.Identifier => ParseAssignment(),
         _ => throw new TlCompilerException(
             $"Instruction attendue, trouvé {Current.Type} ('{Current.Lexeme}')",
             Current.Line,
@@ -50,7 +53,7 @@ public sealed class Parser
         Expect(TokenType.Var);
         var nameToken = Expect(TokenType.Identifier);
 
-        if (_variables.ContainsKey(nameToken.Lexeme))
+        if (IsDeclaredAnywhere(nameToken.Lexeme))
         {
             throw new TlCompilerException(
                 $"Variable '{nameToken.Lexeme}' déjà déclarée",
@@ -62,8 +65,91 @@ public sealed class Parser
         var value = ParseExpression();
         Expect(TokenType.Semicolon);
 
-        _variables[nameToken.Lexeme] = value.ResolveType();
+        DeclareVariable(nameToken.Lexeme, value.ResolveType());
         return new VarDeclaration(nameToken.Lexeme, value);
+    }
+
+    private Statement ParseAssignment()
+    {
+        var nameToken = Expect(TokenType.Identifier);
+
+        if (!TryResolveVariable(nameToken.Lexeme, out var declaredType))
+        {
+            throw new TlCompilerException(
+                $"Variable '{nameToken.Lexeme}' non déclarée",
+                nameToken.Line,
+                nameToken.Column);
+        }
+
+        Expect(TokenType.Equals);
+        var value = ParseExpression();
+        Expect(TokenType.Semicolon);
+
+        if (value.ResolveType() != declaredType)
+        {
+            throw new TlCompilerException(
+                $"Impossible d'assigner {Describe(value.ResolveType())} à '{nameToken.Lexeme}' ({Describe(declaredType)})",
+                nameToken.Line,
+                nameToken.Column);
+        }
+
+        return new AssignmentStatement(nameToken.Lexeme, value);
+    }
+
+    private Statement ParseIfStatement()
+    {
+        var keywordToken = Expect(TokenType.If);
+        Expect(TokenType.LParen);
+        var condition = ParseExpression();
+        Expect(TokenType.RParen);
+        RequireConditionType(condition, keywordToken);
+
+        var thenBlock = ParseBlock();
+        BlockStatement? elseBlock = null;
+
+        if (Current.Type == TokenType.Else)
+        {
+            _position++;
+            elseBlock = Current.Type == TokenType.If
+                ? new BlockStatement(new[] { ParseIfStatement() })
+                : ParseBlock();
+        }
+
+        return new IfStatement(condition, thenBlock, elseBlock);
+    }
+
+    private Statement ParseWhileStatement()
+    {
+        var keywordToken = Expect(TokenType.While);
+        Expect(TokenType.LParen);
+        var condition = ParseExpression();
+        Expect(TokenType.RParen);
+        RequireConditionType(condition, keywordToken);
+
+        var body = ParseBlock();
+        return new WhileStatement(condition, body);
+    }
+
+    private BlockStatement ParseBlock()
+    {
+        Expect(TokenType.LBrace);
+        EnterScope();
+
+        var statements = new List<Statement>();
+
+        while (Current.Type != TokenType.RBrace)
+        {
+            if (Current.Type == TokenType.Eof)
+            {
+                throw new TlCompilerException("Bloc non terminé, '}' attendu", Current.Line, Current.Column);
+            }
+
+            statements.Add(ParseStatement());
+        }
+
+        ExitScope();
+        Expect(TokenType.RBrace);
+        return new BlockStatement(statements);
     }
 
     // programme de précédence (du plus faible au plus fort) :
@@ -208,7 +294,7 @@ public sealed class Parser
                 return new BoolLiteral(false);
             case TokenType.Identifier:
                 _position++;
-                if (!_variables.TryGetValue(token.Lexeme, out var type))
+                if (!TryResolveVariable(token.Lexeme, out var type))
                 {
                     throw new TlCompilerException($"Variable '{token.Lexeme}' non déclarée", token.Line, token.Column);
                 }
@@ -292,6 +378,17 @@ public sealed class Parser
         }
     }
 
+    private static void RequireConditionType(Expression condition, Token keywordToken)
+    {
+        if (condition.ResolveType() != TlType.Bool)
+        {
+            throw new TlCompilerException(
+                $"La condition doit être un booléen, trouvé {Describe(condition.ResolveType())}",
+                keywordToken.Line,
+                keywordToken.Column);
+        }
+    }
+
     private static string Describe(TlType type) => type switch
     {
         TlType.String => "une chaîne",
@@ -299,6 +396,28 @@ public sealed class Parser
         TlType.Bool => "un booléen",
         _ => type.ToString(),
     };
+
+    private void EnterScope() => _scopes.Add(new Dictionary<string, TlType>());
+
+    private void ExitScope() => _scopes.RemoveAt(_scopes.Count - 1);
+
+    private void DeclareVariable(string name, TlType type) => _scopes[^1][name] = type;
+
+    private bool IsDeclaredAnywhere(string name) => _scopes.Any(scope => scope.ContainsKey(name));
+
+    private bool TryResolveVariable(string name, out TlType type)
+    {
+        for (var i = _scopes.Count - 1; i >= 0; i--)
+        {
+            if (_scopes[i].TryGetValue(name, out type))
+            {
+                return true;
+            }
+        }
+
+        type = default;
+        return false;
+    }
 
     private Token Current => _tokens[_position];
 

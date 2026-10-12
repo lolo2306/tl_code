@@ -35,6 +35,8 @@ public sealed class Lexer
                 ';' => ReadSingleChar(TokenType.Semicolon),
                 '(' => ReadSingleChar(TokenType.LParen),
                 ')' => ReadSingleChar(TokenType.RParen),
+                '{' => ReadSingleChar(TokenType.LBrace),
+                '}' => ReadSingleChar(TokenType.RBrace),
                 '+' => ReadSingleChar(TokenType.Plus),
                 '-' => ReadSingleChar(TokenType.Minus),
                 '*' => ReadSingleChar(TokenType.Star),
@@ -197,6 +199,9 @@ public sealed class Lexer
         {
             "print" => new Token(TokenType.Print, text, startLine, startColumn),
             "var" => new Token(TokenType.Var, text, startLine, startColumn),
+            "if" => new Token(TokenType.If, text, startLine, startColumn),
+            "else" => new Token(TokenType.Else, text, startLine, startColumn),
+            "while" => new Token(TokenType.While, text, startLine, startColumn),
             "true" => new Token(TokenType.True, text, startLine, startColumn),
             "false" => new Token(TokenType.False, text, startLine, startColumn),
             _ => new Token(TokenType.Identifier, text, startLine, startColumn),

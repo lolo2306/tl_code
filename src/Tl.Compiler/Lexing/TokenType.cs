@@ -4,6 +4,9 @@ public enum TokenType
 {
     Print,
     Var,
+    If,
+    Else,
+    While,
     True,
     False,
     Identifier,
@@ -13,6 +16,8 @@ public enum TokenType
     Semicolon,
     LParen,
     RParen,
+    LBrace,
+    RBrace,
     Plus,
     Minus,
     Star,

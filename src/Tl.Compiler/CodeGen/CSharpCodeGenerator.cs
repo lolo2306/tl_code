@@ -16,7 +16,7 @@ public static class CSharpCodeGenerator
 
         foreach (var statement in program.Statements)
         {
-            source.AppendLine(EmitStatement(statement));
+            EmitStatement(source, statement, indent: 2);
         }
 
         source.AppendLine("    }");
@@ -25,13 +25,61 @@ public static class CSharpCodeGenerator
         return source.ToString();
     }
 
-    private static string EmitStatement(Statement statement) => statement switch
+    private static void EmitStatement(StringBuilder source, Statement statement, int indent)
     {
-        PrintStatement print => $"        System.Console.WriteLine({EmitExpression(print.Value)});",
-        VarDeclaration varDeclaration =>
-            $"        {ToCSharpKeyword(varDeclaration.Value.ResolveType())} {varDeclaration.Name} = {EmitExpression(varDeclaration.Value)};",
-        _ => throw new NotSupportedException($"Instruction non supportée : {statement.GetType().Name}"),
-    };
+        var pad = Indent(indent);
+
+        switch (statement)
+        {
+            case PrintStatement print:
+                source.AppendLine($"{pad}System.Console.WriteLine({EmitExpression(print.Value)});");
+                break;
+
+            case VarDeclaration varDeclaration:
+                source.AppendLine(
+                    $"{pad}{ToCSharpKeyword(varDeclaration.Value.ResolveType())} {varDeclaration.Name} = {EmitExpression(varDeclaration.Value)};");
+                break;
+
+            case AssignmentStatement assignment:
+                source.AppendLine($"{pad}{assignment.Name} = {EmitExpression(assignment.Value)};");
+                break;
+
+            case IfStatement ifStatement:
+                source.AppendLine($"{pad}if ({EmitExpression(ifStatement.Condition)})");
+                EmitBlock(source, ifStatement.Then, indent);
+
+                if (ifStatement.Else is not null)
+                {
+                    source.AppendLine($"{pad}else");
+                    EmitBlock(source, ifStatement.Else, indent);
+                }
+
+                break;
+
+            case WhileStatement whileStatement:
+                source.AppendLine($"{pad}while ({EmitExpression(whileStatement.Condition)})");
+                EmitBlock(source, whileStatement.Body, indent);
+                break;
+
+            default:
+                throw new NotSupportedException($"Instruction non supportée : {statement.GetType().Name}");
+        }
+    }
+
+    private static void EmitBlock(StringBuilder source, BlockStatement block, int indent)
+    {
+        var pad = Indent(indent);
+        source.AppendLine($"{pad}{{");
+
+        foreach (var statement in block.Statements)
+        {
+            EmitStatement(source, statement, indent + 1);
+        }
+
+        source.AppendLine($"{pad}}}");
+    }
+
+    private static string Indent(int level) => new(' ', level * 4);
 
     private static string EmitExpression(Expression expression) => expression switch
     {

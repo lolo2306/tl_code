@@ -71,4 +71,61 @@ public class CSharpCodeGeneratorTests
 
         Assert.Contains("System.Console.WriteLine((!true));", csharp);
     }
+
+    [Fact]
+    public void Generate_Assignment_EmitsPlainAssignment()
+    {
+        var program = new ProgramNode(new Statement[]
+        {
+            new VarDeclaration("x", new IntLiteral(1)),
+            new AssignmentStatement("x", new IntLiteral(2)),
+        });
+
+        var csharp = CSharpCodeGenerator.Generate(program);
+
+        Assert.Contains("x = 2;", csharp);
+    }
+
+    [Fact]
+    public void Generate_IfWithoutElse_EmitsIfBlockOnly()
+    {
+        var ifStatement = new IfStatement(
+            new BoolLiteral(true),
+            new BlockStatement(new Statement[] { new PrintStatement(new IntLiteral(1)) }),
+            Else: null);
+        var program = new ProgramNode(new Statement[] { ifStatement });
+
+        var csharp = CSharpCodeGenerator.Generate(program);
+
+        Assert.Contains("if (true)", csharp);
+        Assert.DoesNotContain("else", csharp);
+    }
+
+    [Fact]
+    public void Generate_IfWithElse_EmitsBothBlocks()
+    {
+        var ifStatement = new IfStatement(
+            new BoolLiteral(true),
+            new BlockStatement(new Statement[] { new PrintStatement(new IntLiteral(1)) }),
+            new BlockStatement(new Statement[] { new PrintStatement(new IntLiteral(2)) }));
+        var program = new ProgramNode(new Statement[] { ifStatement });
+
+        var csharp = CSharpCodeGenerator.Generate(program);
+
+        Assert.Contains("if (true)", csharp);
+        Assert.Contains("else", csharp);
+    }
+
+    [Fact]
+    public void Generate_While_EmitsWhileLoop()
+    {
+        var whileStatement = new WhileStatement(
+            new BoolLiteral(true),
+            new BlockStatement(new Statement[] { new PrintStatement(new IntLiteral(1)) }));
+        var program = new ProgramNode(new Statement[] { whileStatement });
+
+        var csharp = CSharpCodeGenerator.Generate(program);
+
+        Assert.Contains("while (true)", csharp);
+    }
 }
