@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\Tl.Compiler\Tl.Compiler.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
